@@ -1,0 +1,16 @@
+# Credenciales y variables de entorno
+.env
+*.env
+apikey*.txt
+*credential*
+*secret*
+variables_entorno*
+
+# Entregables del curso con capturas de consola
+*.docx
+~$*
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corrector de pruebas SQL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Informe de evaluacion: columna unica de lectura, con tablas y codigo a sangria completa */
+:root{
+  --bg:#f6f7f9;
+  --surface:#ffffff;
+  --surface-2:#eef0f4;
+  --ink:#15171c;
+  --muted:#5b6270;
+  --line:#dfe3e9;
+  --accent:#2f47c4;
+  --accent-soft:#e7eaff;
+  --ok:#14724a;
+  --ok-soft:#dff2e7;
+  --warn:#8a5a00;
+  --warn-soft:#fbeed2;
+  --bad:#aa2c26;
+  --bad-soft:#fbe3e1;
+  --display:'Archivo',system-ui,sans-serif;
+  --body:'Source Sans 3',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#111318;
+    --surface:#191c23;
+    --surface-2:#21252e;
+    --ink:#e7e9ef;
+    --muted:#99a0ad;
+    --line:#2b303b;
+    --accent:#96a6ff;
+    --accent-soft:#232842;
+    --ok:#56cb8d;
+    --ok-soft:#17301f;
+    --warn:#e2ab45;
+    --warn-soft:#332714;
+    --bad:#f07c73;
+    --bad-soft:#331d1c;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111318;
+  --surface:#191c23;
+  --surface-2:#21252e;
+  --ink:#e7e9ef;
+  --muted:#99a0ad;
+  --line:#2b303b;
+  --accent:#96a6ff;
+  --accent-soft:#232842;
+  --ok:#56cb8d;
+  --ok-soft:#17301f;
+  --warn:#e2ab45;
+  --warn-soft:#332714;
+  --bad:#f07c73;
+  --bad-soft:#331d1c;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:17px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:860px;margin:0 auto;padding:0 20px 80px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(1.9rem,5vw,2.9rem);line-height:1.1;font-weight:700;letter-spacing:-.02em}
+h2{font-size:1.45rem;font-weight:600;letter-spacing:-.01em}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+a{color:var(--accent)}
+
+header{padding:56px 0 40px;border-bottom:1px solid var(--line)}
+.eyebrow{
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:18px;
+}
+.lede{margin-top:18px;font-size:1.18rem;color:var(--muted);max-width:60ch}
+.meta{
+  display:flex;flex-wrap:wrap;gap:8px;margin-top:26px;
+  font-family:var(--mono);font-size:.74rem;
+}
+.meta span{
+  border:1px solid var(--line);border-radius:3px;
+  padding:4px 9px;color:var(--muted);background:var(--surface);
+}
+
+section{padding-top:48px}
+.section-head{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
+.num{
+  font-family:var(--mono);font-size:.78rem;color:var(--accent);
+  font-weight:700;padding-top:3px;
+}
+.stack{display:flex;flex-direction:column;gap:16px}
+.prose{max-width:66ch}
+
+/* pipeline */
+.flow{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;
+  margin-top:8px;
+}
+.node{
+  flex:1 1 140px;background:var(--surface);border:1px solid var(--line);
+  border-radius:6px;padding:12px 13px;min-width:140px;
+}
+.node b{display:block;font-family:var(--display);font-size:.92rem;font-weight:600}
+.node small{display:block;color:var(--muted);font-size:.8rem;line-height:1.45;margin-top:3px}
+.node.lit{border-color:var(--accent);background:var(--accent-soft)}
+
+/* tablas */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:700;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td.n{font-variant-numeric:tabular-nums;text-align:right}
+td.score{font-family:var(--display);font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+
+/* chips */
+.chip{
+  display:inline-block;font-family:var(--mono);font-size:.68rem;font-weight:700;
+  letter-spacing:.05em;text-transform:uppercase;padding:3px 7px;border-radius:3px;
+}
+.c-ok{background:var(--ok-soft);color:var(--ok)}
+.c-warn{background:var(--warn-soft);color:var(--warn)}
+.c-bad{background:var(--bad-soft);color:var(--bad)}
+
+/* preguntas */
+.qlist{display:flex;flex-direction:column;gap:10px}
+.q{
+  background:var(--surface);border:1px solid var(--line);border-radius:6px;
+  padding:14px 16px;display:flex;gap:14px;align-items:flex-start;
+}
+.q .tag{
+  font-family:var(--mono);font-size:.7rem;font-weight:700;color:var(--accent);
+  background:var(--accent-soft);padding:3px 7px;border-radius:3px;white-space:nowrap;
+  margin-top:2px;
+}
+.q p{font-size:.95rem}
+.q em{color:var(--muted);font-style:normal;display:block;font-size:.85rem;margin-top:3px}
+
+/* fichas de candidato */
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  overflow:hidden;
+}
+.card-top{
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  padding:15px 18px;border-bottom:1px solid var(--line);background:var(--surface-2);
+}
+.card-top h3{font-size:1.1rem}
+.card-top .right{display:flex;align-items:center;gap:12px}
+.total{
+  font-family:var(--display);font-size:1.75rem;font-weight:700;
+  font-variant-numeric:tabular-nums;line-height:1;
+}
+.total small{font-size:.8rem;color:var(--muted);font-weight:500}
+.rows{display:flex;flex-direction:column}
+.row{
+  display:grid;grid-template-columns:60px 96px 1fr;gap:12px;align-items:start;
+  padding:13px 18px;border-bottom:1px solid var(--line);font-size:.93rem;
+}
+.row:last-child{border-bottom:none}
+.row .lbl{font-family:var(--mono);font-size:.78rem;color:var(--muted);font-weight:700;padding-top:2px}
+.row .pts{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.84rem;padding-top:3px}
+.row .pts b{color:var(--ink);font-size:1rem}
+.verdict{
+  padding:13px 18px;background:var(--surface-2);font-size:.9rem;color:var(--muted);
+  border-top:1px solid var(--line);
+}
+.verdict b{color:var(--ink);font-weight:600}
+
+/* codigo */
+pre{
+  margin:0;padding:14px 16px;background:var(--surface);border:1px solid var(--line);
+  border-radius:6px;overflow-x:auto;font-family:var(--mono);font-size:.82rem;line-height:1.6;
+}
+pre .hl{background:var(--bad-soft);color:var(--bad);font-weight:700;padding:0 2px;border-radius:2px}
+pre .good{background:var(--ok-soft);color:var(--ok);font-weight:700;padding:0 2px;border-radius:2px}
+.code-label{
+  font-family:var(--mono);font-size:.72rem;color:var(--muted);
+  margin-bottom:6px;display:flex;justify-content:space-between;gap:10px;
+}
+.compare{display:grid;grid-template-columns:1fr;gap:14px}
+
+.callout{
+  border-left:3px solid var(--accent);background:var(--surface);
+  padding:14px 18px;border-radius:0 6px 6px 0;border-top:1px solid var(--line);
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.callout h3{margin-bottom:6px}
+.callout p{font-size:.95rem;color:var(--muted)}
+.callout p + p{margin-top:8px}
+.callout b{color:var(--ink)}
+
+footer{
+  margin-top:64px;padding-top:24px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:.86rem;
+}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:1px 5px;border-radius:3px}
+
+@media (max-width:560px){
+  body{font-size:16px}
+  .row{grid-template-columns:52px 1fr;gap:8px}
+  .row .pts{grid-column:2;padding-top:0}
+  .row .txt{grid-column:2}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Caso práctico · AWS serverless + LLM</div>
+  <h1>Un agente de IA que corrige pruebas técnicas de SQL</h1>
+  <p class="lede">
+    Tres candidatos resuelven la misma prueba y la envían por correo en un archivo de texto.
+    Un workflow serverless las corrige con la misma rúbrica y devuelve un CSV con el puntaje
+    por pregunta y la retroalimentación para cada uno.
+  </p>
+  <div class="meta">
+    <span>API Gateway</span>
+    <span>Step Functions</span>
+    <span>Lambda · Python 3.14</span>
+    <span>DynamoDB</span>
+    <span>S3</span>
+    <span>Groq · gpt-oss-120b</span>
+  </div>
+</header>
+
+<section>
+  <div class="section-head"><span class="num">01</span><h2>El problema</h2></div>
+  <div class="stack prose">
+    <p>
+      Una empresa toma una prueba de SQL a los postulantes al puesto de Analista de Datos.
+      Son tres preguntas que el candidato resuelve en vivo, escribiendo las sentencias sin
+      ejecutarlas contra ninguna base de datos. Cada uno manda sus respuestas por correo en
+      un archivo del bloc de notas.
+    </p>
+    <p>
+      Con cuarenta postulantes, el reclutador técnico dedica una tarde entera a leer archivos
+      de texto. Y corrige distinto al final que al principio: el criterio se desgasta.
+      El problema real no es el tiempo, es la consistencia.
+    </p>
+    <p>
+      La rúbrica vive en un archivo markdown. El agente la aplica igual al archivo número 1 y
+      al número 40, y devuelve siempre la misma estructura de salida, que es lo que permite
+      comparar a todos en una sola tabla.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><span class="num">02</span><h2>Cómo funciona</h2></div>
+  <div class="stack">
+    <p class="prose">
+      Los archivos de los candidatos se dejan en una carpeta de S3. Una petición al API arranca
+      el workflow, que evalúa cada archivo en paralelo y consolida todo en un reporte.
+    </p>
+    <div class="flow">
+      <div class="node"><b>S3</b><small>Rúbrica en markdown y los archivos de los candidatos</small></div>
+      <div class="node"><b>API Gateway</b><small>POST que inicia el proceso de forma asíncrona</small></div>
+      <div class="node lit"><b>Step Functions</b><small>Lista, evalúa en paralelo y consolida</small></div>
+      <div class="node"><b>Agente IA</b><small>Lambda que arma el prompt y llama al modelo</small></div>
+      <div class="node"><b>DynamoDB</b><small>Guarda la corrección de cada candidato</small></div>
+      <div class="node"><b>CSV en S3</b><small>Tabla comparativa de todos los evaluados</small></div>
+    </div>
+    <div class="callout">
+      <h3>La decisión de diseño que sostiene todo</h3>
+      <p>
+        Las columnas del CSV salen de las claves del JSON que devuelve el modelo. Si un
+        candidato recibiera <code>comentario_p1</code> y otro <code>feedback_pregunta_1</code>,
+        la tabla comparativa no existiría.
+      </p>
+      <p>
+        Por eso la rúbrica no solo define cómo puntuar: le impone al modelo un contrato de
+        salida. <b>JSON plano, claves fijas, sin punto y coma dentro de los valores</b>, porque
+        ese es el delimitador del CSV. La rúbrica es a la vez el criterio y el esquema.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><span class="num">03</span><h2>La prueba</h2></div>
+  <div class="stack">
+    <p class="prose">
+      Dos tablas pequeñas, escritas dentro de la rúbrica para que el modelo conozca el
+      resultado esperado sin consultar ninguna base de datos.
+    </p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Tabla</th><th>Filas</th><th>Columnas</th><th>Detalle que importa</th></tr></thead>
+        <tbody>
+          <tr><td><code>empleados</code></td><td class="n">10</td><td>id, nombre, departamento, fecha_ingreso, salario</td><td>Tres empleados sin ninguna venta</td></tr>
+          <tr><td><code>ventas</code></td><td class="n">10</td><td>id_venta, id_empleado, fecha, monto</td><td>El área Soporte queda en cero</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="qlist">
+      <div class="q">
+        <span class="tag">P1 · 30 pts</span>
+        <p>Lista todos los empleados con el monto total que vendieron, incluyendo a los que no tienen ventas, que deben mostrar 0.
+        <em>Evalúa LEFT JOIN y manejo de nulos. Con INNER JOIN se pierden tres filas.</em></p>
+      </div>
+      <div class="q">
+        <span class="tag">P2 · 30 pts</span>
+        <p>Usando una CTE, calcula el total vendido por departamento y muestra solo los que superan 3000.
+        <em>Evalúa CTE, GROUP BY y HAVING. Soporte tiene que quedar fuera.</em></p>
+      </div>
+      <div class="q">
+        <span class="tag">P3 · 30 pts</span>
+        <p>Crea un procedimiento almacenado que reciba un departamento como parámetro y devuelva sus empleados con el total vendido.
+        <em>Evalúa parámetros de entrada. Un procedimiento con el valor fijo no cumple.</em></p>
+      </div>
+    </div>
+    <p class="prose">
+      Los 10 puntos restantes son estilo y claridad. Hay una regla dura: si el candidato no usa
+      la técnica pedida, esa pregunta no pasa del 40 % de su puntaje aunque el resultado se
+      parezca al esperado.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><span class="num">04</span><h2>Resultados</h2></div>
+  <div class="stack">
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Candidato</th><th>P1</th><th>P2</th><th>P3</th><th>Estilo</th><th>Total</th><th>Resultado</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ana Flores</td>
+            <td class="n">30</td><td class="n">30</td><td class="n">30</td><td class="n">9</td>
+            <td class="score">99</td>
+            <td><span class="chip c-ok">Pasa a entrevista</span></td>
+          </tr>
+          <tr>
+            <td>Bruno Cáceres</td>
+            <td class="n">10</td><td class="n">30</td><td class="n">6</td><td class="n">7</td>
+            <td class="score">53</td>
+            <td><span class="chip c-warn">Segunda prueba</span></td>
+          </tr>
+          <tr>
+            <td>Carla Ibáñez</td>
+            <td class="n">12</td><td class="n">8</td><td class="n">6</td><td class="n">6</td>
+            <td class="score">32</td>
+            <td><span class="chip c-bad">No aprueba</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose">
+      En los tres casos el total es la suma exacta de los cuatro criterios. El modelo no
+      estimó la nota: la calculó, y cualquiera puede verificarla a mano. Esa es la diferencia
+      entre un puntaje auditable y uno que solo suena razonable.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><span class="num">05</span><h2>Las tres correcciones</h2></div>
+  <div class="stack">
+
+    <div class="card">
+      <div class="card-top">
+        <h3>Ana Flores Quiroz</h3>
+        <div class="right">
+          <span class="chip c-ok">Avanzado</span>
+          <span class="total">99<small>/100</small></span>
+        </div>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <span class="lbl">P1</span>
+          <span class="pts"><b>30</b>/30 · <span class="chip c-ok">Correcta</span></span>
+          <span class="txt">Buen uso del LEFT JOIN y ISNULL, la consulta devuelve las 10 filas esperadas con totales correctos.</span>
+        </div>
+        <div class="row">
+          <span class="lbl">P2</span>
+          <span class="pts"><b>30</b>/30 · <span class="chip c-ok">Correcta</span></span>
+          <span class="txt">La CTE está bien estructurada, usa GROUP BY y HAVING correctamente para filtrar departamentos con total mayor a 3000.</span>
+        </div>
+        <div class="row">
+          <span class="lbl">P3</span>
+          <span class="pts"><b>30</b>/30 · <span class="chip c-ok">Correcta</span></span>
+          <span class="txt">Procedimiento creado correctamente con parámetro y LEFT JOIN, permite obtener ventas por cualquier departamento.</span>
+        </div>
+      </div>
+      <div class="verdict"><b>Recomendación:</b> continuar practicando optimización de consultas y manejo de índices para mejorar rendimiento.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-top">
+        <h3>Bruno Cáceres Delgado</h3>
+        <div class="right">
+          <span class="chip c-warn">Básico</span>
+          <span class="total">53<small>/100</small></span>
+        </div>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <span class="lbl">P1</span>
+          <span class="pts"><b>10</b>/30 · <span class="chip c-warn">Parcial</span></span>
+          <span class="txt">Utilizaste INNER JOIN, por lo que los empleados sin ventas no aparecen. Debes usar LEFT JOIN y aplicar ISNULL o COALESCE para mostrar 0.</span>
+        </div>
+        <div class="row">
+          <span class="lbl">P2</span>
+          <span class="pts"><b>30</b>/30 · <span class="chip c-ok">Correcta</span></span>
+          <span class="txt">La solución es correcta: usas CTE, GROUP BY y HAVING para filtrar departamentos con total mayor a 3000.</span>
+        </div>
+        <div class="row">
+          <span class="lbl">P3</span>
+          <span class="pts"><b>6</b>/30 · <span class="chip c-warn">Parcial</span></span>
+          <span class="txt">El procedimiento no recibe parámetro y tiene el departamento fijado a 'Ventas'. Añade un parámetro y úsalo en el WHERE.</span>
+        </div>
+      </div>
+      <div class="verdict"><b>Recomendación:</b> revisar el uso de LEFT JOIN y de parámetros en procedimientos, y practicar consultas que cubran todos los casos requeridos.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-top">
+        <h3>Carla Ibáñez Soto</h3>
+        <div class="right">
+          <span class="chip c-bad">Insuficiente</span>
+          <span class="total">32<small>/100</small></span>
+        </div>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <span class="lbl">P1</span>
+          <span class="pts"><b>12</b>/30 · <span class="chip c-warn">Parcial</span></span>
+          <span class="txt">Usó subconsulta en lugar de LEFT JOIN y no convirtió NULL a 0 con ISNULL o COALESCE, lo que incumple la consigna.</span>
+        </div>
+        <div class="row">
+          <span class="lbl">P2</span>
+          <span class="pts"><b>8</b>/30 · <span class="chip c-bad">Incorrecta</span></span>
+          <span class="txt">Empleó sintaxis antigua y puso la condición SUM en WHERE, falta CTE y HAVING, la consulta ni siquiera se ejecuta.</span>
+        </div>
+        <div class="row">
+          <span class="lbl">P3</span>
+          <span class="pts"><b>6</b>/30 · <span class="chip c-bad">Incorrecta</span></span>
+          <span class="txt">Entregó solo una consulta simple, no creó el procedimiento con parámetro requerido.</span>
+        </div>
+      </div>
+      <div class="verdict"><b>Recomendación:</b> practicar JOIN, CTE y creación de procedimientos en SQL Server, y revisar el manejo de valores nulos.</div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><span class="num">06</span><h2>La línea que decide la primera pregunta</h2></div>
+  <div class="stack">
+    <p class="prose">
+      Las tres respuestas a la P1 devuelven una lista de empleados con su total. Parecen
+      equivalentes. La diferencia está en qué pasa con Mario Chávez, Diego Paredes y Paula
+      Núñez, que no vendieron nada.
+    </p>
+    <div class="compare">
+      <div>
+        <div class="code-label"><span>Ana · 30 de 30</span><span>10 filas</span></div>
+<pre><span class="good">LEFT JOIN</span> ventas AS v
+    ON e.id_empleado = v.id_empleado
+...
+<span class="good">ISNULL(SUM(v.monto), 0)</span> AS total_vendido</pre>
+      </div>
+      <div>
+        <div class="code-label"><span>Bruno · 10 de 30</span><span>7 filas</span></div>
+<pre><span class="hl">INNER JOIN</span> ventas v ON e.id_empleado = v.id_empleado
+...
+SUM(v.monto) AS total_vendido</pre>
+      </div>
+      <div>
+        <div class="code-label"><span>Carla · 12 de 30</span><span>10 filas, 3 en blanco</span></div>
+<pre>(<span class="hl">select sum(monto)</span> from ventas
+ where ventas.id_empleado = empleados.id_empleado) as total</pre>
+      </div>
+    </div>
+    <p class="prose">
+      Bruno pierde tres empleados sin darse cuenta. Carla sí los lista, pero con el total en
+      blanco en vez de 0, y además dispara una subconsulta por cada fila. El agente calificó
+      su respuesta como parcial con 12 de 30, que es exactamente el tope del 40 % para quien
+      no usa la técnica pedida.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><span class="num">07</span><h2>Lo que salió mal, y qué enseñó</h2></div>
+  <div class="stack">
+    <div class="callout">
+      <h3>429 de Groq en la primera ejecución</h3>
+      <p>
+        El workflow evalúa los archivos en paralelo. Con tres candidatos, cada petición pesaba
+        unos 2 756 tokens y el límite de la capa gratuita es de <b>8 000 tokens por minuto</b>.
+        Tres por 2 756 son 8 268. Se pasaba por 268 tokens.
+      </p>
+      <p>
+        El culpable era la rúbrica: 6,4 KB que viajan completos con <b>cada</b> candidato.
+        Reescribirla en 4,5 KB, cambiando las tablas de markdown por listas separadas por
+        comas, bajó el total a unos 5 750 tokens. La segunda ejecución pasó sin tocar una sola
+        línea de infraestructura.
+      </p>
+      <p>
+        Es el costo oculto de este diseño: el archivo de instrucciones se multiplica por la
+        cantidad de documentos. Cada kilobyte de rúbrica se paga tantas veces como candidatos
+        haya.
+      </p>
+    </div>
+    <p class="prose">
+      Y una observación sobre el modelo: nadie le dijo que la consulta de Carla no se ejecuta.
+      La rúbrica solo decía que filtrar un agregado con WHERE es un error conceptual. Que
+      además falle en tiempo de ejecución lo dedujo él.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><span class="num">08</span><h2>Para qué sirve esto fuera del ejercicio</h2></div>
+  <div class="stack prose">
+    <p>
+      El workflow no sabe nada de SQL ni de reclutamiento. Recibe una carpeta de documentos y
+      un archivo de instrucciones, y devuelve una tabla comparativa. Cambiar el caso de uso es
+      cambiar un archivo markdown en S3: el mismo despliegue corrió antes evaluando perfiles
+      de Data Engineer, sin tocar una línea de código.
+    </p>
+    <p>
+      Sirve para cualquier situación donde haya muchos documentos parecidos que alguien tiene
+      que revisar con el mismo criterio: pruebas técnicas, evaluaciones de proveedores,
+      revisión de informes, control de calidad documental.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <p>
+    Taller de Cloud Computing · Maestría en Ciencia de Datos · noviembre de 2026.
+    Los candidatos y sus respuestas son ficticios, generados como datos de prueba.
+  </p>
+</footer>
+
+</div>
+</body>
+</html>

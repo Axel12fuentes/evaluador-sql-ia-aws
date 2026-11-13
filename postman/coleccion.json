@@ -1,0 +1,45 @@
+{
+  "info": {
+    "_postman_id": "c4a7f1d9-8b2e-4f06-9a13-5e7c0b3d2a81",
+    "name": "Evaluador de pruebas tecnicas SQL - Workflow con IA",
+    "description": "Antes de usar la coleccion, reemplaza las variables bucket, urlAgente y urlWorkflow por los valores de tu propio despliegue.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Prueba de humo - corregir a un solo candidato",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"instructions_s3_link\": \"s3://{{bucket}}/ej2/instrucciones-prueba-tecnica-sql.md\",\n  \"content_s3_link\": \"s3://{{bucket}}/ej2/contenido/respuestas-01-ana-flores.md\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "{{urlAgente}}", "host": ["{{urlAgente}}"] },
+        "description": "Llama directamente al agente con un unico archivo, sin pasar por Step Functions. Esperado: HTTP 200 con el JSON plano de la correccion. Sirve para validar las instrucciones antes de lanzar el lote completo."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Workflow completo - corregir a los 3 candidatos",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"instructions_s3_link\": \"s3://{{bucket}}/ej2/instrucciones-prueba-tecnica-sql.md\",\n  \"content_s3_folder_link\": \"s3://{{bucket}}/ej2/contenido/\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "{{urlWorkflow}}", "host": ["{{urlWorkflow}}"] },
+        "description": "Inicia el workflow asincrono sobre la carpeta completa. Esperado: HTTP 202 con executionArn y executionName, un estado Map con 3 iteraciones y un CSV comparativo en la carpeta resultados del bucket."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    { "key": "bucket", "value": "TU-BUCKET", "type": "string" },
+    { "key": "urlAgente", "value": "https://TU-API-ID.execute-api.us-east-1.amazonaws.com/agente-ia-generica", "type": "string" },
+    { "key": "urlWorkflow", "value": "https://TU-API-ID.execute-api.us-east-1.amazonaws.com/workflow", "type": "string" }
+  ]
+}
