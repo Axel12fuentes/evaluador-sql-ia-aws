@@ -1,5 +1,7 @@
 # Evaluador de pruebas técnicas de SQL con IA sobre AWS Serverless
 
+**[→ Ver el caso completo con los resultados](https://axel12fuentes.github.io/evaluador-sql-ia-aws/)**
+
 Corrector automático de pruebas técnicas de SQL. El postulante escribe sus respuestas en un
 archivo de texto y lo envía por correo; un agente de IA lo corrige contra una rúbrica fija y
 devuelve un CSV comparativo con el puntaje y la retroalimentación de cada candidato.
